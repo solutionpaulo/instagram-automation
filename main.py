@@ -3,11 +3,12 @@ Pipeline automatizado de conteúdo para Instagram:
 1. Gera texto + prompt visual via Gemini
 2. Gera imagem via Hugging Face (ou placeholder)
 3. Gera vídeo curto com narração TTS
-4. Publica no Instagram via instagrapi
+4. Publica no Instagram via Composio (API oficial)
 
 Uso:
-    python main.py                    # põe no agendador
-    python main.py --once --type foto  # executa uma vez
+    python main.py                          # põe no agendador
+    python main.py --setup                  # conecta Instagram via OAuth
+    python main.py --once --type foto       # executa uma vez
     python main.py --once --type video
 """
 
@@ -23,7 +24,7 @@ from config import POST_INTERVAL_HOURS, MAX_POSTS_PER_DAY
 from modules.text_gen import gerar_post, CATEGORIES
 from modules.image_gen import gerar_imagem
 from modules.video_gen import criar_video
-from modules.instagram import postar_foto, postar_video
+from modules.instagram import postar_foto, postar_video, conectar_instagram
 
 
 def pipeline_foto(category: str = None) -> bool:
@@ -114,11 +115,14 @@ def loop_agendado():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated Instagram Content Pipeline")
+    parser.add_argument("--setup", action="store_true", help="Conecta Instagram via OAuth")
     parser.add_argument("--once", action="store_true", help="Executa uma única vez")
     parser.add_argument("--type", choices=["foto", "video"], default="foto")
     args = parser.parse_args()
 
-    if args.once:
+    if args.setup:
+        conectar_instagram()
+    elif args.once:
         executar_uma_vez(args.type)
     else:
         loop_agendado()
