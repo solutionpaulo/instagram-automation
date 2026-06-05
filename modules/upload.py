@@ -1,3 +1,9 @@
+"""Upload de arquivos de mídia para URLs públicas gratuitas.
+
+Tenta múltiplos serviços (0x0.st, tmpfiles.org, file.io) com retry
+exponencial. Retorna None se todas as tentativas falharem.
+"""
+
 import os
 import time
 import requests
@@ -8,6 +14,16 @@ log = get_logger()
 
 
 def upload_para_url_publica(file_path: str) -> str | None:
+    """Faz upload de arquivo para um serviço de URL pública gratuito.
+
+    Tenta 0x0.st → tmpfiles.org → file.io com backoff exponencial.
+
+    Args:
+        file_path: Caminho local do arquivo.
+
+    Returns:
+        URL pública do arquivo, ou None se todas as tentativas falharem.
+    """
     if not os.path.exists(file_path):
         log.error("Arquivo não encontrado: %s", file_path)
         return None
@@ -47,6 +63,7 @@ def upload_para_url_publica(file_path: str) -> str | None:
 
 
 def _upload_0x0(file_path: str, file_name: str) -> str | None:
+    """Upload via 0x0.st (sem autenticação, aceita qualquer arquivo)."""
     with open(file_path, "rb") as f:
         resp = requests.post(
             "https://0x0.st",
@@ -60,6 +77,7 @@ def _upload_0x0(file_path: str, file_name: str) -> str | None:
 
 
 def _upload_tmpfiles(file_path: str, file_name: str) -> str | None:
+    """Upload via tmpfiles.org (download direto via API)."""
     with open(file_path, "rb") as f:
         resp = requests.post(
             "https://tmpfiles.org/api/v1/upload",
@@ -77,6 +95,7 @@ def _upload_tmpfiles(file_path: str, file_name: str) -> str | None:
 
 
 def _upload_fileio(file_path: str, file_name: str) -> str | None:
+    """Upload via file.io (expira em 1 dia, sem autenticação)."""
     with open(file_path, "rb") as f:
         resp = requests.post(
             "https://file.io",

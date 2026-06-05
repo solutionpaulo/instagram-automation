@@ -32,8 +32,43 @@ python main.py --setup
 # 5. Executar
 python main.py --once --type foto   # um post de foto
 python main.py --once --type video  # um post de vídeo
+python main.py --once --dry-run     # gera conteúdo sem publicar
+python main.py --cleanup            # remove mídia antiga (>7 dias)
 python main.py                       # modo agendado (a cada 6h)
 ```
+
+## Arquitetura
+
+```
+instagram-automation/
+├── main.py              # CLI + agendador (entry point)
+├── config.py            # Constantes centralizadas + validate()
+├── logger.py            # Logging estruturado (níveis + timestamp)
+├── exceptions.py        # Hierarquia de exceções (AppError ← ConfigError, APIError, …)
+├── modules/
+│   ├── text_gen.py      # Gemini: gera JSON com 5 campos validados
+│   ├── image_gen.py     # Hugging Face: imagem 1080×1080 + placeholder fallback
+│   ├── video_gen.py     # moviepy + gTTS: vídeo com narração em português
+│   ├── instagram.py     # Composio: OAuth + criar container + publicar
+│   ├── upload.py        # Upload gratuito (0x0.st / tmpfiles / file.io)
+│   └── cleanup.py       # Limpeza automática de mídia antiga
+├── tests/               # Testes pytest
+│   ├── test_text_gen.py
+│   ├── test_upload.py
+│   └── test_config.py
+├── .github/workflows/   # CI: ruff + pytest em cada push
+├── Dockerfile           # Container multi-estágio
+└── melhoria.md          # Plano de melhorias (4 rounds, 9/15 items)
+```
+
+### Fluxo de um post
+
+1. `main.py` escolhe categoria aleatória + tipo (foto/video)
+2. `text_gen.py`: chama Gemini → valida JSON → fallback se inválido
+3. `image_gen.py`: gera imagem (HF ou placeholder)
+4. (se vídeo) `video_gen.py`: cria vídeo com imagem + narração TTS
+5. `instagram.py`: upload para URL pública → container → publish
+6. Logging em cada etapa via `logger.py`
 
 ## Como obter as chaves
 
@@ -73,8 +108,20 @@ O `python main.py --setup` gera um link de autenticação OAuth.
 
 Uma chamada por post = ~3-4 tools calls (user info + criar container + verificar status + publicar). Com 20K/mês dá para ~5.000 posts.
 
+## Troubleshooting
+
+| Problema | Causa provável | Solução |
+|---|---|---|
+| `SystemExit(1)` no startup | GEMINI_API_KEY ou COMPOSIO_API_KEY ausente | Configure `.env` |
+| "Instagram não conectado" | OAuth não realizado | `python main.py --setup` |
+| Hugging Face lento/caindo | Serviço gratuito sob demanda | Placeholder é gerado automaticamente |
+| Upload falhou | 0x0.st/tmpfiles fora do ar | Log avisa, tenta próximo serviço |
+| "Container não processado" | Instagram demorou para processar | Retry automático (até 10 tentativas) |
+| `ffmpeg not found` | ffmpeg não instalado | `apt install ffmpeg` ou `choco install ffmpeg` |
+
 ## Observações
 
 - A mídia gerada (imagens/vídeos) é enviada para serviços gratuitos de hospedagem temporária (0x0.st, tmpfiles.org) para gerar URLs públicas exigidas pela API oficial do Instagram
 - Se a Hugging Face estiver lenta, o script gera placeholders (gradiente + texto) como fallback
 - O agendador respeita o limite diário configurado em `config.py` (`MAX_POSTS_PER_DAY`)
+- Mídia com mais de 7 dias é removida automaticamente no startup do agendador ou via `--cleanup`

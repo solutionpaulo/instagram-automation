@@ -1,3 +1,9 @@
+"""Geração de imagens via Hugging Face Inference API.
+
+Usa Stable Diffusion (ou modelo configurável) para criar imagens 1080x1080.
+Gera placeholders com fallback textual se a API estiver indisponível.
+"""
+
 import os
 from io import BytesIO
 import requests
@@ -9,6 +15,15 @@ log = get_logger()
 
 
 def gerar_imagem(positive_prompt: str, filename: str) -> str | None:
+    """Gera imagem via Hugging Face Inference API.
+
+    Args:
+        positive_prompt: Descrição em inglês para o modelo.
+        filename: Nome do arquivo para salvar (ex: post_1234567890.png).
+
+    Returns:
+        Caminho do arquivo salvo, ou None em caso de falha.
+    """
     if not positive_prompt:
         positive_prompt = "Vibrant gaming setup with neon lights"
 
@@ -60,6 +75,7 @@ def gerar_imagem(positive_prompt: str, filename: str) -> str | None:
 
 
 def _gerar_placeholder(topic: str, filename: str) -> str:
+    """Gera uma imagem placeholder com texto quando a API está offline."""
     os.makedirs(IMAGES_DIR, exist_ok=True)
     img = Image.new("RGB", (IMAGE_WIDTH, IMAGE_HEIGHT), (20, 20, 40))
     draw = ImageDraw.Draw(img)

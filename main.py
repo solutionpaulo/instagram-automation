@@ -9,7 +9,10 @@ Uso:
     python main.py                          # põe no agendador
     python main.py --setup                  # conecta Instagram via OAuth
     python main.py --once --type foto       # executa uma vez
-    python main.py --once --type video
+    python main.py --once --type video      # executa uma vez (vídeo)
+    python main.py --once --dry-run         # gera conteúdo sem publicar
+    python main.py --cleanup                # remove mídia antiga
+    python main.py --log-level DEBUG        # log detalhado
 """
 
 import argparse
@@ -24,22 +27,16 @@ from logger import get_logger, setup_logger
 log = get_logger()
 
 
-def _ensure_dirs():
+def _ensure_dirs() -> None:
     from config import ASSETS_DIR, IMAGES_DIR, VIDEOS_DIR, DATA_DIR
     for d in [ASSETS_DIR, IMAGES_DIR, VIDEOS_DIR, DATA_DIR]:
         os.makedirs(d, exist_ok=True)
     log.debug("Diretórios verificados/criados")
 
 
-def _ensure_deps():
+def _ensure_deps() -> None:
     try:
-        from config import (
-            GEMINI_API_KEY,
-            COMPOSIO_API_KEY,
-            POST_INTERVAL_HOURS,
-            MAX_POSTS_PER_DAY,
-            validate,
-        )
+        from config import GEMINI_API_KEY, COMPOSIO_API_KEY, POST_INTERVAL_HOURS, MAX_POSTS_PER_DAY, validate
         validate()
         log.info(
             "Intervalo: %dh | Máx/dia: %d | Gemini: %s... | Composio: %s...",
@@ -51,6 +48,20 @@ def _ensure_deps():
     except ImportError as e:
         log.error("Dependência ausente: %s. Execute 'pip install -r requirements.txt'", e)
         sys.exit(1)
+
+
+def _mostrar_preview(post: dict, img_path: str | None, video_path: str | None = None) -> None:
+    """Exibe o conteúdo gerado no terminal antes da publicação."""
+    log.info("=" * 60)
+    log.info("PREVIEW DO POST")
+    log.info("=" * 60)
+    log.info("Título:     %s", post["titulo"])
+    log.info("Legenda:    %s", post["legenda"])
+    log.info("Hashtags:   %s", " ".join(post["hashtags"]))
+    log.info("Imagem:     %s", img_path or "N/A")
+    if video_path:
+        log.info("Vídeo:      %s", video_path)
+    log.info("-" * 60)
 
 
 def pipeline_foto(category: str | None = None, dry_run: bool = False) -> bool:
@@ -71,16 +82,13 @@ def pipeline_foto(category: str | None = None, dry_run: bool = False) -> bool:
     legenda = f"{post['titulo']}\n\n{post['legenda']}\n\n{' '.join(post['hashtags'])}"
 
     if dry_run:
-        log.info("=== DRY RUN — Post seria publicado ===")
-        log.info("Título: %s", post["titulo"])
-        log.info("Legenda: %s", post["legenda"])
-        log.info("Hashtags: %s", " ".join(post["hashtags"]))
-        log.info("Imagem: %s", img_path)
+        _mostrar_preview(post, img_path)
+        log.info("(dry-run) Post NÃO foi publicado")
         return True
 
     log.info("Publicando foto...")
     ok = postar_foto(legenda, img_path)
-    log.info("%s publicado", "✓" if ok else "✗ Falha ao")
+    log.info("%s", "✓ Publicado com sucesso" if ok else "✗ Falha ao publicar")
     return ok
 
 
@@ -113,20 +121,17 @@ def pipeline_video(category: str | None = None, dry_run: bool = False) -> bool:
     legenda = f"{post['titulo']}\n\n{post['legenda']}\n\n{' '.join(post['hashtags'])}"
 
     if dry_run:
-        log.info("=== DRY RUN — Post seria publicado ===")
-        log.info("Título: %s", post["titulo"])
-        log.info("Legenda: %s", post["legenda"])
-        log.info("Hashtags: %s", " ".join(post["hashtags"]))
-        log.info("Vídeo: %s", video_path)
+        _mostrar_preview(post, img_path, video_path)
+        log.info("(dry-run) Post NÃO foi publicado")
         return True
 
     log.info("Publicando vídeo...")
     ok = postar_video(legenda, video_path)
-    log.info("%s publicado", "✓" if ok else "✗ Falha ao")
+    log.info("%s", "✓ Publicado com sucesso" if ok else "✗ Falha ao publicar")
     return ok
 
 
-def executar_uma_vez(tipo: str = "foto", dry_run: bool = False):
+def executar_uma_vez(tipo: str = "foto", dry_run: bool = False) -> None:
     if dry_run:
         log.info("=== MODO DRY RUN — Nada será publicado ===")
 
@@ -138,10 +143,11 @@ def executar_uma_vez(tipo: str = "foto", dry_run: bool = False):
         pipeline_foto(categoria, dry_run=dry_run)
 
 
-def loop_agendado():
+def loop_agendado() -> None:
     import schedule
 
     from config import POST_INTERVAL_HOURS, MAX_POSTS_PER_DAY
+    from modules.cleanup import limpar_midia_antiga
 
     post_count = 0
     last_reset_day = datetime.now().day
@@ -170,6 +176,9 @@ def loop_agendado():
     schedule.every(POST_INTERVAL_HOURS).hours.do(job)
 
     log.info("Agendador iniciado — a cada %dh, máx %d/dia", POST_INTERVAL_HOURS, MAX_POSTS_PER_DAY)
+
+    # Cleanup semanal no startup
+    limpar_midia_antiga()
     job()
 
     while True:
@@ -177,12 +186,13 @@ def loop_agendado():
         time.sleep(60)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Automated Instagram Content Pipeline")
     parser.add_argument("--setup", action="store_true", help="Conecta Instagram via OAuth")
     parser.add_argument("--once", action="store_true", help="Executa uma única vez")
     parser.add_argument("--type", choices=["foto", "video"], default="foto")
     parser.add_argument("--dry-run", action="store_true", help="Gera conteúdo mas não publica")
+    parser.add_argument("--cleanup", action="store_true", help="Remove mídia gerada antiga")
     parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARN", "ERROR"], default=None)
     args = parser.parse_args()
 
@@ -195,6 +205,10 @@ def main():
     if args.setup:
         from modules.instagram import conectar_instagram
         conectar_instagram()
+    elif args.cleanup:
+        from modules.cleanup import limpar_midia_antiga
+        removidos = limpar_midia_antiga()
+        log.info("Cleanup concluído: %d arquivo(s) removido(s)", removidos)
     elif args.once:
         executar_uma_vez(args.type, dry_run=args.dry_run)
     else:

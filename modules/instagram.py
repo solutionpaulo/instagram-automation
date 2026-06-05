@@ -1,3 +1,9 @@
+"""Integração com Instagram via Composio (API oficial).
+
+Fluxo: OAuth → upload de mídia → criar container → verificar status → publicar.
+Requer uma conta Instagram Business conectada via `--setup`.
+"""
+
 from composio import Composio
 from logger import get_logger
 from config import COMPOSIO_API_KEY, COMPOSIO_ENTITY_ID, MAX_RETRIES, RETRY_DELAY, UPLOAD_TIMEOUT
@@ -7,6 +13,7 @@ log = get_logger()
 
 
 def _get_composio():
+    """Retorna entidade Composio autenticada (singleton)."""
     if not COMPOSIO_API_KEY:
         log.error(
             "COMPOSIO_API_KEY não configurada. "
@@ -18,6 +25,11 @@ def _get_composio():
 
 
 def conectar_instagram():
+    """Inicia o fluxo OAuth para conectar uma conta Instagram Business.
+
+    Exibe o link de autorização no terminal. A conexão é salva
+    automaticamente pelo Composio após a autorização no navegador.
+    """
     entity = _get_composio()
     connection = entity.initiate_connection("instagram")
     url = connection.redirect_url
@@ -30,6 +42,7 @@ def conectar_instagram():
 
 
 def _get_ig_user_id(entity) -> str | None:
+    """Obtém o ID do usuário Instagram via API do Composio."""
     for attempt in range(MAX_RETRIES):
         try:
             result = entity.execute(
@@ -51,6 +64,7 @@ def _get_ig_user_id(entity) -> str | None:
 
 
 def _criar_e_publicar(entity, ig_user_id: str, media_url: str, legenda: str, is_video: bool = False):
+    """Cria container, aguarda processamento e publica no Instagram."""
     import time
 
     action = "INSTAGRAM_CREATE_MEDIA_CONTAINER"
@@ -124,6 +138,11 @@ def _criar_e_publicar(entity, ig_user_id: str, media_url: str, legenda: str, is_
 
 
 def postar_foto(legenda: str, image_path: str) -> bool:
+    """Faz upload e publica uma foto no Instagram.
+
+    Returns:
+        True se publicado com sucesso.
+    """
     entity = _get_composio()
     ig_user_id = _get_ig_user_id(entity)
     if not ig_user_id:
@@ -139,6 +158,11 @@ def postar_foto(legenda: str, image_path: str) -> bool:
 
 
 def postar_video(legenda: str, video_path: str) -> bool:
+    """Faz upload e publica um vídeo no Instagram.
+
+    Returns:
+        True se publicado com sucesso.
+    """
     entity = _get_composio()
     ig_user_id = _get_ig_user_id(entity)
     if not ig_user_id:

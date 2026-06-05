@@ -1,3 +1,9 @@
+"""Geração de vídeos com imagem + narração TTS.
+
+Combina uma imagem de fundo com título sobreposto e narração em português
+via gTTS. Usa moviepy para renderização.
+"""
+
 import os
 from moviepy.video.VideoClip import ImageClip, TextClip
 from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
@@ -15,6 +21,17 @@ def criar_video(
     filename: str,
     titulo: str | None = None,
 ) -> str | None:
+    """Gera vídeo com imagem de fundo, título sobreposto e narração TTS.
+
+    Args:
+        image_path: Caminho da imagem de fundo.
+        texto_narracao: Texto para narração TTS em português.
+        filename: Nome do arquivo de saída (ex: video_1234567890.mp4).
+        titulo: Título opcional sobreposto no vídeo.
+
+    Returns:
+        Caminho do arquivo de vídeo salvo, ou None em caso de falha.
+    """
     os.makedirs(VIDEOS_DIR, exist_ok=True)
 
     audio_path = _gerar_audio(texto_narracao, filename)
@@ -68,6 +85,7 @@ def criar_video(
 
 
 def _gerar_audio(texto: str, filename: str) -> str | None:
+    """Gera arquivo de áudio TTS em português via gTTS."""
     try:
         tts = gTTS(text=texto, lang="pt", slow=False)
         audio_path = os.path.join(VIDEOS_DIR, filename.replace(".mp4", ".mp3"))
@@ -80,5 +98,6 @@ def _gerar_audio(texto: str, filename: str) -> str | None:
 
 
 def _estimar_duracao(texto: str) -> float:
+    """Estima a duração do vídeo baseada na contagem de palavras (mín. 5s)."""
     palavras = len(texto.split())
     return max(palavras / 3.5, 5.0)

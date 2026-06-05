@@ -1,3 +1,9 @@
+"""Geração de texto via Gemini (Google AI).
+
+Produz posts completos no formato JSON com 5 campos obrigatórios.
+Inclui validação, fallback contextual e suporte a múltiplas categorias.
+"""
+
 import json
 import random
 import re
@@ -40,6 +46,7 @@ _client: Any | None = None
 
 
 def _get_client():
+    """Retorna cliente Gemini (singleton)."""
     global _client
     if _client is None:
         if not GEMINI_API_KEY:
@@ -52,6 +59,7 @@ def _get_client():
 
 
 def _parse_json(raw: str) -> dict | None:
+    """Extrai e parseia JSON da resposta do Gemini (removendo markdown)."""
     json_match = re.search(r"\{.*\}", raw, re.DOTALL)
     if json_match:
         raw = json_match.group()
@@ -62,6 +70,7 @@ def _parse_json(raw: str) -> dict | None:
 
 
 def _validate_post(data: dict) -> bool:
+    """Valida se o JSON contém todos os campos obrigatórios não vazios."""
     for field in _REQUIRED_FIELDS:
         if field not in data or not data[field]:
             log.warning("Campo ausente no JSON do Gemini: %s", field)
@@ -73,6 +82,7 @@ def _validate_post(data: dict) -> bool:
 
 
 def _fallback_post(category: str) -> dict:
+    """Gera um post genérico quando o Gemini falha ou retorna JSON inválido."""
     log.warning("Usando fallback genérico para categoria: %s", category)
     return {
         "titulo": f"🔥 {category.upper()} — Fique por dentro!",
@@ -93,6 +103,14 @@ def _fallback_post(category: str) -> dict:
 
 
 def gerar_post(category: str | None = None) -> dict:
+    """Gera um post completo usando Gemini, com fallback em caso de falha.
+
+    Args:
+        category: Categoria do post. Se None, escolhe aleatoriamente.
+
+    Returns:
+        Dicionário com titulo, legenda, hashtags, imagem_prompt e video_script.
+    """
     if category is None:
         category = random.choice(CATEGORIES)
 

@@ -1,3 +1,10 @@
+"""Carregamento de configuração via variáveis de ambiente (.env).
+
+Todas as constantes da aplicação ficam centralizadas aqui.
+Use validate() para falhar rapidamente no startup se chaves obrigatórias
+estiverem ausentes.
+"""
+
 import os
 from dotenv import load_dotenv
 from logger import get_logger
@@ -49,6 +56,10 @@ MEDIA_RETENTION_DAYS: int = 7
 
 
 def validate() -> None:
+    """Verifica se todas as variáveis obrigatórias estão configuradas.
+
+    Sai com código 1 se GEMINI_API_KEY ou COMPOSIO_API_KEY estiverem vazias.
+    """
     missing: list[str] = []
     if not GEMINI_API_KEY:
         missing.append("GEMINI_API_KEY")
