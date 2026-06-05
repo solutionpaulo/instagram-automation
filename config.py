@@ -1,20 +1,67 @@
 import os
 from dotenv import load_dotenv
+from logger import get_logger
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-COMPOSIO_API_KEY = os.getenv("COMPOSIO_API_KEY")
+log = get_logger()
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-HF_IMAGE_MODEL = os.getenv("HF_IMAGE_MODEL", "runwayml/stable-diffusion-v1-5")
+# --- Obrigatório ---
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+COMPOSIO_API_KEY: str = os.getenv("COMPOSIO_API_KEY", "")
 
-ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
-IMAGES_DIR = os.path.join(ASSETS_DIR, "images")
-VIDEOS_DIR = os.path.join(ASSETS_DIR, "videos")
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+# --- Opcional ---
+HF_TOKEN: str = os.getenv("HF_TOKEN", "")
+HF_IMAGE_MODEL: str = os.getenv("HF_IMAGE_MODEL", "runwayml/stable-diffusion-v1-5")
+LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
-POST_INTERVAL_HOURS = 6
-MAX_POSTS_PER_DAY = 4
+# --- Diretórios ---
+BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR: str = os.path.join(BASE_DIR, "assets")
+IMAGES_DIR: str = os.path.join(ASSETS_DIR, "images")
+VIDEOS_DIR: str = os.path.join(ASSETS_DIR, "videos")
+DATA_DIR: str = os.path.join(BASE_DIR, "data")
 
-COMPOSIO_ENTITY_ID = "instagram_bot"
+# --- Agendamento ---
+POST_INTERVAL_HOURS: int = int(os.getenv("POST_INTERVAL_HOURS", "6"))
+MAX_POSTS_PER_DAY: int = int(os.getenv("MAX_POSTS_PER_DAY", "4"))
+
+# --- API / Timeouts ---
+UPLOAD_TIMEOUT: int = int(os.getenv("UPLOAD_TIMEOUT", "60"))
+HF_TIMEOUT: int = int(os.getenv("HF_TIMEOUT", "120"))
+GEMINI_TIMEOUT: int = int(os.getenv("GEMINI_TIMEOUT", "30"))
+
+# --- Retry ---
+MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "5"))
+RETRY_DELAY: int = int(os.getenv("RETRY_DELAY", "10"))
+
+# --- Geração de Imagem ---
+IMAGE_WIDTH: int = 1080
+IMAGE_HEIGHT: int = 1080
+INFERENCE_STEPS: int = 25
+GUIDANCE_SCALE: float = 7.5
+
+# --- Composio ---
+COMPOSIO_ENTITY_ID: str = os.getenv("COMPOSIO_ENTITY_ID", "instagram_bot")
+
+# --- Cleanup ---
+MEDIA_RETENTION_DAYS: int = 7
+
+
+def validate() -> None:
+    missing: list[str] = []
+    if not GEMINI_API_KEY:
+        missing.append("GEMINI_API_KEY")
+    if not COMPOSIO_API_KEY:
+        missing.append("COMPOSIO_API_KEY")
+
+    if missing:
+        keys = ", ".join(missing)
+        log.error(
+            "Variáveis obrigatórias não configuradas: %s. "
+            "Copie .env.example para .env e preencha os valores.",
+            keys,
+        )
+        raise SystemExit(1)
+
+    log.info("Configuração validada com sucesso")
