@@ -1,0 +1,13 @@
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "W", "UP", "N", "D", "C4", "G"]
+
+# Ignore missing docstrings for now
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+          "N802", "N803", "N806", "N812", "N813", "N815", "N816", "N817"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
