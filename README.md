@@ -34,6 +34,7 @@ python main.py --once --type foto   # um post de foto
 python main.py --once --type video  # um post de vídeo
 python main.py --once --dry-run     # gera conteúdo sem publicar
 python main.py --cleanup            # remove mídia antiga (>7 dias)
+python main.py --log-level DEBUG    # log detalhado
 python main.py                       # modo agendado (a cada 6h)
 ```
 
@@ -58,7 +59,7 @@ instagram-automation/
 │   └── test_config.py
 ├── .github/workflows/   # CI: ruff + pytest em cada push
 ├── Dockerfile           # Container multi-estágio
-└── melhoria.md          # Plano de melhorias (4 rounds, 9/15 items)
+└── melhorias.md         # Plano de melhorias (15/15 concluído)
 ```
 
 ### Fluxo de um post
